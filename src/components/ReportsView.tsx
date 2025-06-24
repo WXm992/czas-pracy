@@ -1,10 +1,11 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Employee {
   id: string;
@@ -73,6 +74,50 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
     }).filter(report => !selectedEmployee || report.employee.id === selectedEmployee);
   };
 
+  const exportToExcel = () => {
+    const monthlyData = getMonthlyReport();
+    
+    const excelData = monthlyData.map(report => ({
+      'Pracownik': `${report.employee.firstName} ${report.employee.lastName}`,
+      'Stanowisko': report.employee.position,
+      'Godziny Pracy': report.workHours,
+      'Dni Urlopu': report.vacationDays,
+      'Dni Chorobowe': report.sickDays,
+      'Nieobecności': report.absenceDays,
+      'Wynagrodzenie (zł)': report.salary
+    }));
+
+    // Dodaj wiersz z sumami
+    if (monthlyData.length > 1) {
+      const totalRow = {
+        'Pracownik': 'SUMA',
+        'Stanowisko': '',
+        'Godziny Pracy': monthlyData.reduce((sum, r) => sum + parseFloat(r.workHours), 0).toFixed(2),
+        'Dni Urlopu': monthlyData.reduce((sum, r) => sum + r.vacationDays, 0),
+        'Dni Chorobowe': monthlyData.reduce((sum, r) => sum + r.sickDays, 0),
+        'Nieobecności': monthlyData.reduce((sum, r) => sum + r.absenceDays, 0),
+        'Wynagrodzenie (zł)': totalSalary.toFixed(2)
+      };
+      excelData.push(totalRow);
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    
+    // Dodaj nagłówek z informacją o okresie
+    const [year, month] = selectedMonth.split('-');
+    const monthNames = [
+      'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
+      'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
+    ];
+    const monthName = monthNames[parseInt(month) - 1];
+    
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Raport ${monthName} ${year}`);
+    
+    const fileName = `Raport_${monthName}_${year}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   const monthlyData = getMonthlyReport();
   const totalSalary = monthlyData.reduce((sum, report) => sum + parseFloat(report.salary), 0);
 
@@ -109,12 +154,21 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
                 ))}
               </select>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
               <Button 
                 onClick={() => window.print()}
-                className="w-full"
+                className="flex-1"
               >
                 Drukuj Raport
+              </Button>
+              <Button 
+                onClick={exportToExcel}
+                variant="outline"
+                className="flex-1"
+                disabled={monthlyData.length === 0}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Excel
               </Button>
             </div>
           </div>
