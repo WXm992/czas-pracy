@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 import { Users, Clock, Calendar, Calculator, Building, UserCheck } from 'lucide-react';
 import EmployeeForm from '@/components/EmployeeForm';
 import ManagerForm from '@/components/ManagerForm';
