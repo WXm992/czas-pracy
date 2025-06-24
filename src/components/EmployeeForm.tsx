@@ -15,15 +15,17 @@ interface Employee {
   startDate: string;
   phone: string;
   email: string;
+  projectId?: string;
 }
 
 interface EmployeeFormProps {
   employee?: Employee;
+  projects?: Array<{ id: string; name: string; status: string }>;
   onSave: (employee: Employee) => void;
   onCancel: () => void;
 }
 
-const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel }) => {
+const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, projects = [], onSave, onCancel }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Employee>({
     firstName: employee?.firstName || '',
@@ -33,6 +35,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
     startDate: employee?.startDate || new Date().toISOString().split('T')[0],
     phone: employee?.phone || '',
     email: employee?.email || '',
+    projectId: employee?.projectId || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -64,6 +67,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
       [field]: value
     }));
   };
+
+  const activeProjects = projects.filter(p => p.status === 'active');
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -105,6 +110,25 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
               required
             />
           </div>
+
+          {activeProjects.length > 0 && (
+            <div>
+              <Label htmlFor="projectId">Budowa</Label>
+              <select
+                id="projectId"
+                className="w-full p-2 border border-gray-300 rounded-md"
+                value={formData.projectId}
+                onChange={(e) => handleChange('projectId', e.target.value)}
+              >
+                <option value="">Nie przypisany do budowy</option>
+                {activeProjects.map(project => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

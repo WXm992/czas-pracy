@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 interface TimeEntry {
   id: string;
   employeeId: string;
+  projectId: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -19,14 +20,17 @@ interface TimeEntry {
 }
 
 interface TimeTrackerProps {
-  employees: Array<{ id: string; firstName: string; lastName: string }>;
+  employees: Array<{ id: string; firstName: string; lastName: string; projectId?: string }>;
+  projects: Array<{ id: string; name: string }>;
+  currentProjectId?: string;
   onSave: (entry: TimeEntry) => void;
 }
 
-const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, onSave }) => {
+const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentProjectId, onSave }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     employeeId: '',
+    projectId: currentProjectId || '',
     date: new Date().toISOString().split('T')[0],
     startTime: '08:00',
     endTime: '16:00',
@@ -35,13 +39,18 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, onSave }) => {
     type: 'work' as 'work' | 'vacation' | 'sick' | 'absence'
   });
 
+  // Filter employees by selected project
+  const filteredEmployees = currentProjectId 
+    ? employees.filter(emp => emp.projectId === currentProjectId)
+    : employees.filter(emp => !formData.projectId || emp.projectId === formData.projectId);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.employeeId || !formData.date) {
+    if (!formData.employeeId || !formData.date || !formData.projectId) {
       toast({
         title: "Błąd",
-        description: "Proszę wybrać pracownika i datę",
+        description: "Proszę wybrać pracownika, budowę i datę",
         variant: "destructive"
       });
       return;
@@ -86,6 +95,25 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, onSave }) => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {!currentProjectId && (
+              <div>
+                <Label htmlFor="project">Budowa *</Label>
+                <select
+                  id="project"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  value={formData.projectId}
+                  onChange={(e) => setFormData({ ...formData, projectId: e.target.value, employeeId: '' })}
+                  required
+                >
+                  <option value="">Wybierz budowę</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <Label htmlFor="employee">Pracownik *</Label>
               <select
@@ -96,7 +124,7 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, onSave }) => {
                 required
               >
                 <option value="">Wybierz pracownika</option>
-                {employees.map(emp => (
+                {filteredEmployees.map(emp => (
                   <option key={emp.id} value={emp.id}>
                     {emp.firstName} {emp.lastName}
                   </option>
