@@ -76,9 +76,14 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
   };
 
   const exportToExcel = () => {
+    const [year, month] = selectedMonth.split('-');
     const monthlyData = getMonthlyReport();
     
-    const excelData = monthlyData.map(report => ({
+    // Uzyskaj liczbę dni w miesiącu
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+    
+    // Główny arkusz z podsumowaniem
+    const summaryData = monthlyData.map(report => ({
       'Pracownik': `${report.employee.firstName} ${report.employee.lastName}`,
       'Stanowisko': report.employee.position,
       'Godziny Pracy': report.workHours,
@@ -88,7 +93,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
       'Wynagrodzenie (zł)': report.salary
     }));
 
-    // Dodaj wiersz z sumami
+    // Dodaj wiersz z sumami do głównego arkusza
     if (monthlyData.length > 1) {
       const totalRow = {
         'Pracownik': 'SUMA',
@@ -99,21 +104,61 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
         'Nieobecności': monthlyData.reduce((sum, r) => sum + r.absenceDays, 0),
         'Wynagrodzenie (zł)': totalSalary.toFixed(2)
       };
-      excelData.push(totalRow);
+      summaryData.push(totalRow);
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    // Szczegółowy arkusz z godzinami dla każdego dnia
+    const detailedData: any[] = [];
+    
+    // Nagłówek z dniami miesiąca
+    const header: any = { 'Pracownik': 'Pracownik' };
+    for (let day = 1; day <= daysInMonth; day++) {
+      header[`${day}`] = `${day}`;
+    }
+    header['Suma'] = 'Suma';
+    detailedData.push(header);
+
+    // Dane dla każdego pracownika
+    monthlyData.forEach(report => {
+      const row: any = { 'Pracownik': `${report.employee.firstName} ${report.employee.lastName}` };
+      let totalHours = 0;
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayString = `${year}-${month.padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const dayEntries = timeEntries.filter(entry => 
+          entry.employeeId === report.employee.id &&
+          entry.date === dayString &&
+          entry.type === 'work' &&
+          (!selectedEmployee || report.employee.id === selectedEmployee)
+        );
+        
+        const dayHours = dayEntries.reduce((sum, entry) => sum + calculateWorkHours(entry), 0);
+        row[`${day}`] = dayHours > 0 ? dayHours.toFixed(2) : '';
+        totalHours += dayHours;
+      }
+      
+      row['Suma'] = totalHours.toFixed(2);
+      detailedData.push(row);
+    });
+
+    // Stwórz workbook z dwoma arkuszami
     const workbook = XLSX.utils.book_new();
     
-    // Dodaj nagłówek z informacją o okresie
-    const [year, month] = selectedMonth.split('-');
+    // Arkusz podsumowania
+    const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+    
+    // Arkusz szczegółowy
+    const detailedWorksheet = XLSX.utils.json_to_sheet(detailedData, { skipHeader: true });
+    
+    // Dodaj arkusze do workbook
     const monthNames = [
       'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
       'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
     ];
     const monthName = monthNames[parseInt(month) - 1];
     
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Raport ${monthName} ${year}`);
+    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Podsumowanie');
+    XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'Godziny dzienne');
     
     const fileName = `Raport_${monthName}_${year}.xlsx`;
     XLSX.writeFile(workbook, fileName);
