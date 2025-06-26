@@ -154,7 +154,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
     // === ARKUSZ 2: GODZINY DZIENNE ===
     const dailyData: any[] = [
       ['GODZINY DZIENNE', ...Array(daysInMonth).fill(''), 'SUMA'],
-      ['Pracownik', ...Array.from({length: daysInMonth}, (_, i) => i + 1), 'Suma']
+      ['Pracownik', ...Array.from({length: daysInMonth}, (_, i) => (i + 1).toString()), 'Suma']
     ];
 
     monthlyData.forEach(report => {
@@ -170,11 +170,11 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
         );
         
         const dayHours = dayEntries.reduce((sum, entry) => sum + calculateWorkHours(entry), 0);
-        row.push(dayHours > 0 ? dayHours : '');
+        row.push(dayHours > 0 ? dayHours.toString() : '');
         totalHours += dayHours;
       }
       
-      row.push(totalHours);
+      row.push(totalHours.toString());
       dailyData.push(row);
     });
 
@@ -216,7 +216,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
         weeklyData.push([
           `${report.employee.firstName} ${report.employee.lastName}`,
           weekHours.toFixed(2),
-          workDays,
+          workDays.toString(),
           avgHours.toFixed(2),
           weekSalary.toFixed(2)
         ]);
@@ -239,10 +239,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
       ['Średnie godziny/pracownik', (monthlyData.reduce((sum, r) => sum + parseFloat(r.workHours), 0) / monthlyData.length).toFixed(2), 'godz'],
       ['Łączne wynagrodzenia', monthlyData.reduce((sum, r) => sum + parseFloat(r.salary), 0).toFixed(2), 'zł'],
       ['Średnie wynagrodzenie', (monthlyData.reduce((sum, r) => sum + parseFloat(r.salary), 0) / monthlyData.length).toFixed(2), 'zł'],
-      ['Liczba pracowników', monthlyData.length, 'osób'],
-      ['Dni urlopowe (łącznie)', monthlyData.reduce((sum, r) => sum + r.vacationDays, 0), 'dni'],
-      ['Dni chorobowe (łącznie)', monthlyData.reduce((sum, r) => sum + r.sickDays, 0), 'dni'],
-      ['Nieobecności (łącznie)', monthlyData.reduce((sum, r) => sum + r.absenceDays, 0), 'dni']
+      ['Liczba pracowników', monthlyData.length.toString(), 'osób'],
+      ['Dni urlopowe (łącznie)', monthlyData.reduce((sum, r) => sum + r.vacationDays, 0).toString(), 'dni'],
+      ['Dni chorobowe (łącznie)', monthlyData.reduce((sum, r) => sum + r.sickDays, 0).toString(), 'dni'],
+      ['Nieobecności (łącznie)', monthlyData.reduce((sum, r) => sum + r.absenceDays, 0).toString(), 'dni']
     ];
 
     const statsWorksheet = XLSX.utils.aoa_to_sheet(statsData);
