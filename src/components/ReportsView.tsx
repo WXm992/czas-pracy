@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,52 +76,89 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
     }).filter(report => !selectedEmployee || report.employee.id === selectedEmployee);
   };
 
+  const getWeeklyData = () => {
+    const [year, month] = selectedMonth.split('-');
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+    const weeks: any[] = [];
+    
+    // Podziel miesiąc na tygodnie
+    let currentWeek: number[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(parseInt(year), parseInt(month) - 1, day);
+      const dayOfWeek = date.getDay();
+      
+      if (dayOfWeek === 1 && currentWeek.length > 0) { // Poniedziałek - nowy tydzień
+        weeks.push([...currentWeek]);
+        currentWeek = [];
+      }
+      currentWeek.push(day);
+    }
+    if (currentWeek.length > 0) {
+      weeks.push(currentWeek);
+    }
+
+    return weeks;
+  };
+
   const exportToExcel = () => {
     const [year, month] = selectedMonth.split('-');
     const monthlyData = getMonthlyReport();
-    
-    // Uzyskaj liczbę dni w miesiącu
+    const weeks = getWeeklyData();
     const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
     
-    // Główny arkusz z podsumowaniem
-    const summaryData = monthlyData.map(report => ({
-      'Pracownik': `${report.employee.firstName} ${report.employee.lastName}`,
-      'Stanowisko': report.employee.position,
-      'Godziny Pracy': report.workHours,
-      'Dni Urlopu': report.vacationDays,
-      'Dni Chorobowe': report.sickDays,
-      'Nieobecności': report.absenceDays,
-      'Wynagrodzenie (zł)': report.salary
-    }));
+    const workbook = XLSX.utils.book_new();
 
-    // Dodaj wiersz z sumami do głównego arkusza
-    if (monthlyData.length > 1) {
-      const totalRow = {
-        'Pracownik': 'SUMA',
-        'Stanowisko': '',
-        'Godziny Pracy': monthlyData.reduce((sum, r) => sum + parseFloat(r.workHours), 0).toFixed(2),
-        'Dni Urlopu': monthlyData.reduce((sum, r) => sum + r.vacationDays, 0),
-        'Dni Chorobowe': monthlyData.reduce((sum, r) => sum + r.sickDays, 0),
-        'Nieobecności': monthlyData.reduce((sum, r) => sum + r.absenceDays, 0),
-        'Wynagrodzenie (zł)': totalSalary.toFixed(2)
-      };
-      summaryData.push(totalRow);
-    }
+    // === ARKUSZ 1: PODSUMOWANIE MIESIĘCZNE ===
+    const summaryData: any[] = [
+      ['RAPORT MIESIĘCZNY', '', '', '', '', '', ''],
+      [`Miesiąc: ${month}/${year}`, '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['Pracownik', 'Stanowisko', 'Godziny Pracy', 'Dni Urlopu', 'Dni Chorobowe', 'Nieobecności', 'Wynagrodzenie (zł)']
+    ];
 
-    // Szczegółowy arkusz z godzinami dla każdego dnia
-    const detailedData: any[] = [];
-    
-    // Nagłówek z dniami miesiąca
-    const header: any = { 'Pracownik': 'Pracownik' };
-    for (let day = 1; day <= daysInMonth; day++) {
-      header[`${day}`] = `${day}`;
-    }
-    header['Suma'] = 'Suma';
-    detailedData.push(header);
-
-    // Dane dla każdego pracownika
     monthlyData.forEach(report => {
-      const row: any = { 'Pracownik': `${report.employee.firstName} ${report.employee.lastName}` };
+      summaryData.push([
+        `${report.employee.firstName} ${report.employee.lastName}`,
+        report.employee.position,
+        parseFloat(report.workHours),
+        report.vacationDays,
+        report.sickDays,
+        report.absenceDays,
+        parseFloat(report.salary)
+      ]);
+    });
+
+    // Dodaj sumę
+    if (monthlyData.length > 1) {
+      summaryData.push(['', '', '', '', '', '', '']);
+      summaryData.push([
+        'SUMA',
+        '',
+        monthlyData.reduce((sum, r) => sum + parseFloat(r.workHours), 0),
+        monthlyData.reduce((sum, r) => sum + r.vacationDays, 0),
+        monthlyData.reduce((sum, r) => sum + r.sickDays, 0),
+        monthlyData.reduce((sum, r) => sum + r.absenceDays, 0),
+        monthlyData.reduce((sum, r) => sum + parseFloat(r.salary), 0)
+      ]);
+    }
+
+    const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+    
+    // Formatowanie arkusza podsumowania
+    const summaryRange = XLSX.utils.decode_range(summaryWorksheet['!ref'] || 'A1:G10');
+    summaryWorksheet['!cols'] = [
+      { width: 25 }, { width: 20 }, { width: 15 }, 
+      { width: 12 }, { width: 15 }, { width: 12 }, { width: 18 }
+    ];
+
+    // === ARKUSZ 2: GODZINY DZIENNE ===
+    const dailyData: any[] = [
+      ['GODZINY DZIENNE', ...Array(daysInMonth).fill(''), 'SUMA'],
+      ['Pracownik', ...Array.from({length: daysInMonth}, (_, i) => i + 1), 'Suma']
+    ];
+
+    monthlyData.forEach(report => {
+      const row = [`${report.employee.firstName} ${report.employee.lastName}`];
       let totalHours = 0;
       
       for (let day = 1; day <= daysInMonth; day++) {
@@ -128,28 +166,88 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
         const dayEntries = timeEntries.filter(entry => 
           entry.employeeId === report.employee.id &&
           entry.date === dayString &&
-          entry.type === 'work' &&
-          (!selectedEmployee || report.employee.id === selectedEmployee)
+          entry.type === 'work'
         );
         
         const dayHours = dayEntries.reduce((sum, entry) => sum + calculateWorkHours(entry), 0);
-        row[`${day}`] = dayHours > 0 ? dayHours.toFixed(2) : '';
+        row.push(dayHours > 0 ? dayHours : '');
         totalHours += dayHours;
       }
       
-      row['Suma'] = totalHours.toFixed(2);
-      detailedData.push(row);
+      row.push(totalHours);
+      dailyData.push(row);
     });
 
-    // Stwórz workbook z dwoma arkuszami
-    const workbook = XLSX.utils.book_new();
-    
-    // Arkusz podsumowania
-    const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
-    
-    // Arkusz szczegółowy
-    const detailedWorksheet = XLSX.utils.json_to_sheet(detailedData, { skipHeader: true });
-    
+    const dailyWorksheet = XLSX.utils.aoa_to_sheet(dailyData);
+    dailyWorksheet['!cols'] = [{ width: 25 }, ...Array(daysInMonth + 1).fill({ width: 5 })];
+
+    // === ARKUSZ 3: PODSUMOWANIA TYGODNIOWE ===
+    const weeklyData: any[] = [
+      ['PODSUMOWANIA TYGODNIOWE', '', '', '', ''],
+      ['', '', '', '', '']
+    ];
+
+    weeks.forEach((week, weekIndex) => {
+      weeklyData.push([`TYDZIEŃ ${weekIndex + 1} (dni: ${week.join(', ')})`, '', '', '', '']);
+      weeklyData.push(['Pracownik', 'Godziny', 'Dni Pracy', 'Średnia/dzień', 'Wynagrodzenie']);
+      
+      monthlyData.forEach(report => {
+        let weekHours = 0;
+        let workDays = 0;
+        
+        week.forEach((day: number) => {
+          const dayString = `${year}-${month.padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+          const dayEntries = timeEntries.filter(entry => 
+            entry.employeeId === report.employee.id &&
+            entry.date === dayString &&
+            entry.type === 'work'
+          );
+          
+          const dayHours = dayEntries.reduce((sum, entry) => sum + calculateWorkHours(entry), 0);
+          if (dayHours > 0) {
+            weekHours += dayHours;
+            workDays++;
+          }
+        });
+        
+        const weekSalary = weekHours * report.employee.hourlyRate;
+        const avgHours = workDays > 0 ? weekHours / workDays : 0;
+        
+        weeklyData.push([
+          `${report.employee.firstName} ${report.employee.lastName}`,
+          weekHours.toFixed(2),
+          workDays,
+          avgHours.toFixed(2),
+          weekSalary.toFixed(2)
+        ]);
+      });
+      
+      weeklyData.push(['', '', '', '', '']); // Pusty wiersz między tygodniami
+    });
+
+    const weeklyWorksheet = XLSX.utils.aoa_to_sheet(weeklyData);
+    weeklyWorksheet['!cols'] = [
+      { width: 25 }, { width: 12 }, { width: 12 }, { width: 15 }, { width: 18 }
+    ];
+
+    // === ARKUSZ 4: STATYSTYKI ===
+    const statsData: any[] = [
+      ['STATYSTYKI MIESIĘCZNE', '', ''],
+      ['', '', ''],
+      ['Metryka', 'Wartość', 'Jednostka'],
+      ['Łączne godziny pracy', monthlyData.reduce((sum, r) => sum + parseFloat(r.workHours), 0).toFixed(2), 'godz'],
+      ['Średnie godziny/pracownik', (monthlyData.reduce((sum, r) => sum + parseFloat(r.workHours), 0) / monthlyData.length).toFixed(2), 'godz'],
+      ['Łączne wynagrodzenia', monthlyData.reduce((sum, r) => sum + parseFloat(r.salary), 0).toFixed(2), 'zł'],
+      ['Średnie wynagrodzenie', (monthlyData.reduce((sum, r) => sum + parseFloat(r.salary), 0) / monthlyData.length).toFixed(2), 'zł'],
+      ['Liczba pracowników', monthlyData.length, 'osób'],
+      ['Dni urlopowe (łącznie)', monthlyData.reduce((sum, r) => sum + r.vacationDays, 0), 'dni'],
+      ['Dni chorobowe (łącznie)', monthlyData.reduce((sum, r) => sum + r.sickDays, 0), 'dni'],
+      ['Nieobecności (łącznie)', monthlyData.reduce((sum, r) => sum + r.absenceDays, 0), 'dni']
+    ];
+
+    const statsWorksheet = XLSX.utils.aoa_to_sheet(statsData);
+    statsWorksheet['!cols'] = [{ width: 25 }, { width: 15 }, { width: 12 }];
+
     // Dodaj arkusze do workbook
     const monthNames = [
       'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
@@ -158,7 +256,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ employees, timeEntries }) => 
     const monthName = monthNames[parseInt(month) - 1];
     
     XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Podsumowanie');
-    XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'Godziny dzienne');
+    XLSX.utils.book_append_sheet(workbook, dailyWorksheet, 'Godziny dzienne');
+    XLSX.utils.book_append_sheet(workbook, weeklyWorksheet, 'Tygodnie');
+    XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Statystyki');
     
     const fileName = `Raport_${monthName}_${year}.xlsx`;
     XLSX.writeFile(workbook, fileName);
