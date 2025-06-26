@@ -1,10 +1,8 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 
 interface TimeEntry {
@@ -97,7 +95,7 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
 
     const entries = Object.entries(employeesData).filter(([_, data]) => {
       // Zapisz tylko jeśli wprowadzono jakieś dane lub zmieniono typ z 'work'
-      return data.type !== 'work' || data.startTime !== '08:00' || data.endTime !== '16:00' || data.description.trim() !== '';
+      return data.type !== 'work' || data.startTime !== '08:00' || data.endTime !== '16:00';
     });
 
     if (entries.length === 0) {
@@ -171,8 +169,18 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* Filtry globalne */}
+          {/* Filtry globalne - data pierwsza */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div>
+              <Label htmlFor="date">Data *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                required
+              />
+            </div>
             {!currentProjectId && (
               <div>
                 <Label htmlFor="project">Budowa *</Label>
@@ -195,16 +203,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
                 </select>
               </div>
             )}
-            <div>
-              <Label htmlFor="date">Data *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                required
-              />
-            </div>
           </div>
 
           {/* Lista pracowników */}
@@ -291,17 +289,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
                             </p>
                           </div>
                         )}
-
-                        {/* Opis */}
-                        <div>
-                          <Label>Opis (opcjonalny)</Label>
-                          <Textarea
-                            value={data.description}
-                            onChange={(e) => updateEmployeeData(employee.id, 'description', e.target.value)}
-                            placeholder="Dodatkowe informacje..."
-                            rows={2}
-                          />
-                        </div>
                       </div>
                     </Card>
                   );
