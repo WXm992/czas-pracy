@@ -295,14 +295,44 @@ const Index = () => {
         </div>
 
         {/* Główna zawartość */}
-        <Tabs defaultValue="projects" className="space-y-4">
+        <Tabs defaultValue="timetracking" className="space-y-4">
           <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="timetracking">Czas Pracy</TabsTrigger>
             <TabsTrigger value="projects">Budowy</TabsTrigger>
             <TabsTrigger value="managers">Kierownicy</TabsTrigger>
             <TabsTrigger value="employees">Pracownicy</TabsTrigger>
-            <TabsTrigger value="timetracking">Czas Pracy</TabsTrigger>
             <TabsTrigger value="reports">Raporty</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="timetracking">
+            <div className="space-y-6">
+              {projects.filter(p => p.status === 'active').length > 0 && (
+                <div className="mb-4">
+                  <Label htmlFor="projectFilter">Filtruj według budowy:</Label>
+                  <select
+                    id="projectFilter"
+                    className="w-full max-w-md p-2 border border-gray-300 rounded-md mt-1"
+                    value={selectedProject}
+                    onChange={(e) => setSelectedProject(e.target.value)}
+                  >
+                    <option value="">Wszystkie budowy</option>
+                    {projects.filter(p => p.status === 'active').map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              <TimeTracker
+                employees={employees}
+                projects={projects.filter(p => p.status === 'active')}
+                currentProjectId={selectedProject}
+                onSave={handleSaveTimeEntry}
+              />
+            </div>
+          </TabsContent>
 
           <TabsContent value="projects">
             <ProjectManager
