@@ -235,6 +235,12 @@ const Index = () => {
     setManagerAssignments(assignments);
   };
 
+  const handleUpdateEmployeeProject = (employeeId: string, projectId: string | undefined) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId ? { ...emp, projectId } : emp
+    ));
+  };
+
   if (showEmployeeForm) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
@@ -307,6 +313,7 @@ const Index = () => {
               selectedProject={selectedProject}
               onProjectChange={setSelectedProject}
               onSaveTimeEntry={handleSaveTimeEntry}
+              onUpdateEmployeeProject={handleUpdateEmployeeProject}
             />
           </TabsContent>
 
@@ -314,9 +321,11 @@ const Index = () => {
             <ProjectManager
               projects={projects}
               managers={managers}
+              assignments={managerAssignments}
               onSave={handleSaveProject}
               onEdit={handleSaveProject}
               onDelete={handleDeleteProject}
+              onUpdateAssignments={handleUpdateManagerAssignments}
             />
           </TabsContent>
 

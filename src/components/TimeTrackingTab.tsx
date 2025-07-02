@@ -9,6 +9,7 @@ interface TimeTrackingTabProps {
   selectedProject: string;
   onProjectChange: (projectId: string) => void;
   onSaveTimeEntry: (entry: any) => void;
+  onUpdateEmployeeProject: (employeeId: string, projectId: string | undefined) => void;
 }
 
 const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
@@ -16,7 +17,8 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
   employees,
   selectedProject,
   onProjectChange,
-  onSaveTimeEntry
+  onSaveTimeEntry,
+  onUpdateEmployeeProject
 }) => {
   const activeProjects = projects.filter(p => p.status === 'active');
 
@@ -46,6 +48,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
         projects={activeProjects}
         currentProjectId={selectedProject}
         onSave={onSaveTimeEntry}
+        onUpdateEmployeeProject={onUpdateEmployeeProject}
       />
     </div>
   );

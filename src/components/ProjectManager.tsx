@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Building, MapPin, Calendar } from 'lucide-react';
+import { Building, MapPin, Calendar, ChevronDown, ChevronUp, Users } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -18,24 +19,40 @@ interface Project {
   managerId: string;
 }
 
+interface Manager {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+interface ManagerAssignment {
+  managerId: string;
+  projectId: string;
+}
+
 interface ProjectManagerProps {
   projects: Project[];
-  managers: Array<{ id: string; firstName: string; lastName: string }>;
+  managers: Manager[];
+  assignments: ManagerAssignment[];
   onSave: (project: Project) => void;
   onEdit: (project: Project) => void;
   onDelete: (projectId: string) => void;
+  onUpdateAssignments: (assignments: ManagerAssignment[]) => void;
 }
 
 const ProjectManager: React.FC<ProjectManagerProps> = ({
   projects,
   managers,
+  assignments,
   onSave,
   onEdit,
-  onDelete
+  onDelete,
+  onUpdateAssignments
 }) => {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     name: '',
     location: '',
@@ -44,6 +61,47 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
     status: 'active' as 'active' | 'completed' | 'paused',
     managerId: ''
   });
+
+  const getProjectManagers = (projectId: string) => {
+    return assignments
+      .filter(a => a.projectId === projectId)
+      .map(a => managers.find(m => m.id === a.managerId))
+      .filter(Boolean);
+  };
+
+  const isManagerAssigned = (managerId: string, projectId: string) => {
+    return assignments.some(a => a.managerId === managerId && a.projectId === projectId);
+  };
+
+  const handleManagerAssignment = (managerId: string, projectId: string, assigned: boolean) => {
+    let newAssignments = [...assignments];
+    
+    if (assigned) {
+      newAssignments.push({ managerId, projectId });
+    } else {
+      newAssignments = newAssignments.filter(
+        a => !(a.managerId === managerId && a.projectId === projectId)
+      );
+    }
+    
+    onUpdateAssignments(newAssignments);
+    
+    const manager = managers.find(m => m.id === managerId);
+    toast({
+      title: assigned ? "Przypisano kierownika" : "Usunięto przypisanie",
+      description: `${manager?.firstName} ${manager?.lastName} ${assigned ? 'został przypisany do' : 'został usunięty z'} budowy`
+    });
+  };
+
+  const toggleProjectExpansion = (projectId: string) => {
+    const newExpanded = new Set(expandedProjects);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedProjects(newExpanded);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +205,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="managerId">Kierownik budowy *</Label>
+              <Label htmlFor="managerId">Główny kierownik budowy *</Label>
               <select
                 id="managerId"
                 className="w-full p-2 border border-gray-300 rounded-md"
@@ -225,54 +283,113 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
       </div>
 
       <div className="grid gap-4">
-        {projects.map(project => (
-          <Card key={project.id}>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold">{project.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                      {getStatusText(project.status)}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-1 text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      <span>{project.location}</span>
+        {projects.map(project => {
+          const projectManagers = getProjectManagers(project.id);
+          const isExpanded = expandedProjects.has(project.id);
+          
+          return (
+            <Card key={project.id}>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold">{project.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                        {getStatusText(project.status)}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>Rozpoczęta: {new Date(project.startDate).toLocaleDateString('pl-PL')}</span>
+                    
+                    <div className="space-y-1 text-gray-600 mb-3">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>{project.location}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>Rozpoczęta: {new Date(project.startDate).toLocaleDateString('pl-PL')}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        <span>Kierownicy: {projectManagers.length}</span>
+                      </div>
+                      {project.description && (
+                        <p className="text-sm mt-2">{project.description}</p>
+                      )}
                     </div>
-                    <p className="text-sm">
-                      <strong>Kierownik:</strong> {getManagerName(project.managerId)}
-                    </p>
-                    {project.description && (
-                      <p className="text-sm mt-2">{project.description}</p>
+
+                    {/* Przycisk rozwijania kierowników */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleProjectExpansion(project.id)}
+                      className="mb-3"
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      Zarządzaj kierownikami
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 ml-2" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 ml-2" />
+                      )}
+                    </Button>
+
+                    {/* Rozwinięta lista kierowników */}
+                    {isExpanded && (
+                      <div className="border-t pt-4 mt-4">
+                        <h4 className="font-medium mb-3">Przypisz kierowników do budowy:</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {managers.map(manager => {
+                            const isAssigned = isManagerAssigned(manager.id, project.id);
+                            return (
+                              <div 
+                                key={manager.id}
+                                className={`flex items-center justify-between p-3 rounded-md border ${
+                                  isAssigned ? 'bg-green-50 border-green-200' : 'bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">
+                                    {manager.firstName} {manager.lastName}
+                                  </span>
+                                  {isAssigned && (
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                      Przypisany
+                                    </span>
+                                  )}
+                                </div>
+                                <Checkbox
+                                  checked={isAssigned}
+                                  onCheckedChange={(checked) => 
+                                    handleManagerAssignment(manager.id, project.id, checked as boolean)
+                                  }
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
                   </div>
+                  
+                  <div className="space-x-2 ml-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleEdit(project)}
+                    >
+                      Edytuj
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => onDelete(project.id)}
+                    >
+                      Usuń
+                    </Button>
+                  </div>
                 </div>
-                
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleEdit(project)}
-                  >
-                    Edytuj
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => onDelete(project.id)}
-                  >
-                    Usuń
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
         
         {projects.length === 0 && (
           <Card>
