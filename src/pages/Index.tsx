@@ -1,15 +1,16 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Users, Clock, Calendar, Calculator, Building, UserCheck, Wrench } from 'lucide-react';
 import EmployeeForm from '@/components/EmployeeForm';
 import ManagerForm from '@/components/ManagerForm';
-import TimeTracker from '@/components/TimeTracker';
 import ProjectManager from '@/components/ProjectManager';
 import ReportsView from '@/components/ReportsView';
 import EquipmentManager from '@/components/EquipmentManager';
+import StatsCards from '@/components/StatsCards';
+import ManagersList from '@/components/ManagersList';
+import EmployeesList from '@/components/EmployeesList';
+import TimeTrackingTab from '@/components/TimeTrackingTab';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -150,7 +151,6 @@ const Index = () => {
     setTimeEntries(prev => prev.filter(entry => entry.employeeId !== employeeId));
   };
 
-  // Enhanced function to handle manager-project assignments
   const handleSaveManager = async (manager: Manager) => {
     try {
       if (editingManager) {
@@ -180,7 +180,6 @@ const Index = () => {
     setProjects(prev => prev.filter(project => project.managerId !== managerId));
   };
 
-  // Enhanced function to handle project creation with manager assignments
   const handleSaveProject = async (project: Project) => {
     try {
       const existingProject = projects.find(p => p.id === project.id);
@@ -190,7 +189,6 @@ const Index = () => {
         setProjects(prev => [...prev, project]);
       }
 
-      // Create manager-project assignment in database
       if (project.managerId) {
         const { error } = await supabase
           .from('manager_project_assignments')
@@ -230,43 +228,6 @@ const Index = () => {
   const handleSaveTimeEntry = (entry: TimeEntry) => {
     setTimeEntries(prev => [...prev, entry]);
   };
-
-  const getProjectEmployees = (projectId: string) => {
-    return employees.filter(emp => emp.projectId === projectId);
-  };
-
-  const getProjectTimeEntries = (projectId: string) => {
-    return timeEntries.filter(entry => entry.projectId === projectId);
-  };
-
-  const stats = [
-    {
-      title: 'Aktywne Budowy',
-      value: projects.filter(p => p.status === 'active').length.toString(),
-      icon: Building,
-      color: 'bg-blue-500'
-    },
-    {
-      title: 'Kierownicy',
-      value: managers.length.toString(),
-      icon: UserCheck,
-      color: 'bg-purple-500'
-    },
-    {
-      title: 'Aktywni Pracownicy',
-      value: employees.length.toString(),
-      icon: Users,
-      color: 'bg-green-500'
-    },
-    {
-      title: 'Wpisy Dzisiaj',
-      value: timeEntries.filter(entry => 
-        entry.date === new Date().toISOString().split('T')[0]
-      ).length.toString(),
-      icon: Clock,
-      color: 'bg-orange-500'
-    }
-  ];
 
   if (showEmployeeForm) {
     return (
@@ -315,33 +276,13 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Statystyki */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.title}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">
-                        {stat.title}
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {stat.value}
-                      </p>
-                    </div>
-                    <div className={`p-3 rounded-full ${stat.color}`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        <StatsCards
+          projects={projects}
+          managers={managers}
+          employees={employees}
+          timeEntries={timeEntries}
+        />
 
-        {/* Główna zawartość */}
         <Tabs defaultValue="timetracking" className="space-y-4">
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="timetracking">Czas Pracy</TabsTrigger>
@@ -353,33 +294,13 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="timetracking">
-            <div className="space-y-6">
-              {projects.filter(p => p.status === 'active').length > 0 && (
-                <div className="mb-4">
-                  <Label htmlFor="projectFilter">Filtruj według budowy:</Label>
-                  <select
-                    id="projectFilter"
-                    className="w-full max-w-md p-2 border border-gray-300 rounded-md mt-1"
-                    value={selectedProject}
-                    onChange={(e) => setSelectedProject(e.target.value)}
-                  >
-                    <option value="">Wszystkie budowy</option>
-                    {projects.filter(p => p.status === 'active').map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              
-              <TimeTracker
-                employees={employees}
-                projects={projects.filter(p => p.status === 'active')}
-                currentProjectId={selectedProject}
-                onSave={handleSaveTimeEntry}
-              />
-            </div>
+            <TimeTrackingTab
+              projects={projects}
+              employees={employees}
+              selectedProject={selectedProject}
+              onProjectChange={setSelectedProject}
+              onSaveTimeEntry={handleSaveTimeEntry}
+            />
           </TabsContent>
 
           <TabsContent value="projects">
@@ -393,98 +314,23 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="managers" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Kierownicy Budowy</h2>
-              <Button onClick={() => setShowManagerForm(true)}>
-                <UserCheck className="w-4 h-4 mr-2" />
-                Dodaj Kierownika
-              </Button>
-            </div>
-            
-            <div className="grid gap-4">
-              {managers.map(manager => (
-                <Card key={manager.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">
-                          {manager.firstName} {manager.lastName}
-                        </h3>
-                        <p className="text-gray-600 mb-1">Tel: {manager.phone}</p>
-                        <p className="text-gray-600 mb-1">Email: {manager.email}</p>
-                        <p className="text-gray-600">{manager.experience}</p>
-                        <p className="text-sm text-blue-600 mt-2">
-                          Budowy: {projects.filter(p => p.managerId === manager.id).length}
-                        </p>
-                      </div>
-                      <div className="space-x-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => handleEditManager(manager)}
-                        >
-                          Edytuj
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleDeleteManager(manager.id)}
-                        >
-                          Usuń
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <ManagersList
+              managers={managers}
+              projects={projects}
+              onAddManager={() => setShowManagerForm(true)}
+              onEditManager={handleEditManager}
+              onDeleteManager={handleDeleteManager}
+            />
           </TabsContent>
 
           <TabsContent value="employees" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Zarządzanie Pracownikami</h2>
-              <Button onClick={() => setShowEmployeeForm(true)}>
-                <Users className="w-4 h-4 mr-2" />
-                Dodaj Pracownika
-              </Button>
-            </div>
-            
-            <div className="grid gap-4">
-              {employees.map(employee => (
-                <Card key={employee.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">
-                          {employee.firstName} {employee.lastName}
-                        </h3>
-                        <p className="text-gray-600 mb-1">{employee.position}</p>
-                        <p className="text-gray-600 mb-1">Stawka: {employee.hourlyRate} zł/h</p>
-                        <p className="text-gray-600 mb-1">Tel: {employee.phone}</p>
-                        <p className="text-gray-600">Email: {employee.email}</p>
-                        {employee.projectId && (
-                          <p className="text-sm text-blue-600 mt-2">
-                            Budowa: {projects.find(p => p.id === employee.projectId)?.name}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-x-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => handleEditEmployee(employee)}
-                        >
-                          Edytuj
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleDeleteEmployee(employee.id)}
-                        >
-                          Usuń
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <EmployeesList
+              employees={employees}
+              projects={projects}
+              onAddEmployee={() => setShowEmployeeForm(true)}
+              onEditEmployee={handleEditEmployee}
+              onDeleteEmployee={handleDeleteEmployee}
+            />
           </TabsContent>
 
           <TabsContent value="equipment">
