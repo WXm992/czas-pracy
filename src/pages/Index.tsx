@@ -170,6 +170,11 @@ const Index = () => {
     }
   };
 
+  const handleEditManager = (manager: Manager) => {
+    setEditingManager(manager);
+    setShowManagerForm(true);
+  };
+
   const handleDeleteManager = (managerId: string) => {
     setManagers(prev => prev.filter(mgr => mgr.id !== managerId));
     setProjects(prev => prev.filter(project => project.managerId !== managerId));
