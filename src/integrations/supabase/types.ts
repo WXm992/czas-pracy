@@ -9,7 +9,110 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      equipment: {
+        Row: {
+          brand: string | null
+          category: string
+          condition: string
+          created_at: string
+          id: string
+          model: string | null
+          name: string
+          notes: string | null
+          purchase_date: string | null
+          serial_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          category: string
+          condition?: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          name: string
+          notes?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string
+          condition?: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          name?: string
+          notes?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      equipment_project_assignments: {
+        Row: {
+          assigned_date: string
+          equipment_id: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          project_id: string
+          returned_date: string | null
+        }
+        Insert: {
+          assigned_date?: string
+          equipment_id: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          project_id: string
+          returned_date?: string | null
+        }
+        Update: {
+          assigned_date?: string
+          equipment_id?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          project_id?: string
+          returned_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_project_assignments_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manager_project_assignments: {
+        Row: {
+          assigned_date: string
+          id: string
+          is_active: boolean
+          manager_id: string
+          project_id: string
+        }
+        Insert: {
+          assigned_date?: string
+          id?: string
+          is_active?: boolean
+          manager_id: string
+          project_id: string
+        }
+        Update: {
+          assigned_date?: string
+          id?: string
+          is_active?: boolean
+          manager_id?: string
+          project_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

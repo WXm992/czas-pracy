@@ -1,15 +1,17 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Users, Clock, Calendar, Calculator, Building, UserCheck } from 'lucide-react';
+import { Users, Clock, Calendar, Calculator, Building, UserCheck, Wrench } from 'lucide-react';
 import EmployeeForm from '@/components/EmployeeForm';
 import ManagerForm from '@/components/ManagerForm';
 import TimeTracker from '@/components/TimeTracker';
 import ProjectManager from '@/components/ProjectManager';
 import ReportsView from '@/components/ReportsView';
+import EquipmentManager from '@/components/EquipmentManager';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Employee {
   id: string;
@@ -55,6 +57,8 @@ interface TimeEntry {
 }
 
 const Index = () => {
+  const { toast } = useToast();
+  
   const [employees, setEmployees] = useState<Employee[]>([
     {
       id: '1',
@@ -123,6 +127,9 @@ const Index = () => {
   const [editingManager, setEditingManager] = useState<Manager | undefined>();
   const [selectedProject, setSelectedProject] = useState<string>('');
 
+  const [equipment, setEquipment] = useState([]);
+  const [managerAssignments, setManagerAssignments] = useState([]);
+
   const handleSaveEmployee = (employee: Employee) => {
     if (editingEmployee) {
       setEmployees(prev => prev.map(emp => emp.id === employee.id ? employee : emp));
@@ -143,19 +150,24 @@ const Index = () => {
     setTimeEntries(prev => prev.filter(entry => entry.employeeId !== employeeId));
   };
 
-  const handleSaveManager = (manager: Manager) => {
-    if (editingManager) {
-      setManagers(prev => prev.map(mgr => mgr.id === manager.id ? manager : mgr));
-    } else {
-      setManagers(prev => [...prev, manager]);
+  // Enhanced function to handle manager-project assignments
+  const handleSaveManager = async (manager: Manager) => {
+    try {
+      if (editingManager) {
+        setManagers(prev => prev.map(mgr => mgr.id === manager.id ? manager : mgr));
+      } else {
+        setManagers(prev => [...prev, manager]);
+      }
+      setShowManagerForm(false);
+      setEditingManager(undefined);
+    } catch (error) {
+      console.error('Error saving manager:', error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zapisać kierownika",
+        variant: "destructive"
+      });
     }
-    setShowManagerForm(false);
-    setEditingManager(undefined);
-  };
-
-  const handleEditManager = (manager: Manager) => {
-    setEditingManager(manager);
-    setShowManagerForm(true);
   };
 
   const handleDeleteManager = (managerId: string) => {
@@ -163,12 +175,42 @@ const Index = () => {
     setProjects(prev => prev.filter(project => project.managerId !== managerId));
   };
 
-  const handleSaveProject = (project: Project) => {
-    const existingProject = projects.find(p => p.id === project.id);
-    if (existingProject) {
-      setProjects(prev => prev.map(p => p.id === project.id ? project : p));
-    } else {
-      setProjects(prev => [...prev, project]);
+  // Enhanced function to handle project creation with manager assignments
+  const handleSaveProject = async (project: Project) => {
+    try {
+      const existingProject = projects.find(p => p.id === project.id);
+      if (existingProject) {
+        setProjects(prev => prev.map(p => p.id === project.id ? project : p));
+      } else {
+        setProjects(prev => [...prev, project]);
+      }
+
+      // Create manager-project assignment in database
+      if (project.managerId) {
+        const { error } = await supabase
+          .from('manager_project_assignments')
+          .upsert({
+            manager_id: project.managerId,
+            project_id: project.id,
+            is_active: true
+          });
+
+        if (error) {
+          console.error('Error creating manager assignment:', error);
+        }
+      }
+
+      toast({
+        title: "Sukces",
+        description: existingProject ? "Budowa została zaktualizowana" : "Budowa została dodana"
+      });
+    } catch (error) {
+      console.error('Error saving project:', error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zapisać budowy",
+        variant: "destructive"
+      });
     }
   };
 
@@ -296,11 +338,12 @@ const Index = () => {
 
         {/* Główna zawartość */}
         <Tabs defaultValue="timetracking" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="timetracking">Czas Pracy</TabsTrigger>
             <TabsTrigger value="projects">Budowy</TabsTrigger>
             <TabsTrigger value="managers">Kierownicy</TabsTrigger>
             <TabsTrigger value="employees">Pracownicy</TabsTrigger>
+            <TabsTrigger value="equipment">Sprzęt</TabsTrigger>
             <TabsTrigger value="reports">Raporty</TabsTrigger>
           </TabsList>
 
@@ -439,34 +482,8 @@ const Index = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="timetracking">
-            <div className="space-y-6">
-              {projects.filter(p => p.status === 'active').length > 0 && (
-                <div className="mb-4">
-                  <Label htmlFor="projectFilter">Filtruj według budowy:</Label>
-                  <select
-                    id="projectFilter"
-                    className="w-full max-w-md p-2 border border-gray-300 rounded-md mt-1"
-                    value={selectedProject}
-                    onChange={(e) => setSelectedProject(e.target.value)}
-                  >
-                    <option value="">Wszystkie budowy</option>
-                    {projects.filter(p => p.status === 'active').map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              
-              <TimeTracker
-                employees={employees}
-                projects={projects.filter(p => p.status === 'active')}
-                currentProjectId={selectedProject}
-                onSave={handleSaveTimeEntry}
-              />
-            </div>
+          <TabsContent value="equipment">
+            <EquipmentManager />
           </TabsContent>
 
           <TabsContent value="reports">
