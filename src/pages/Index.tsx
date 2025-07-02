@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +10,7 @@ import StatsCards from '@/components/StatsCards';
 import ManagersList from '@/components/ManagersList';
 import EmployeesList from '@/components/EmployeesList';
 import TimeTrackingTab from '@/components/TimeTrackingTab';
+import ManagerAssignments from '@/components/ManagerAssignments';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -129,7 +129,9 @@ const Index = () => {
   const [selectedProject, setSelectedProject] = useState<string>('');
 
   const [equipment, setEquipment] = useState([]);
-  const [managerAssignments, setManagerAssignments] = useState([]);
+  const [managerAssignments, setManagerAssignments] = useState<Array<{managerId: string; projectId: string}>>([
+    { managerId: '1', projectId: '1' }
+  ]);
 
   const handleSaveEmployee = (employee: Employee) => {
     if (editingEmployee) {
@@ -229,6 +231,10 @@ const Index = () => {
     setTimeEntries(prev => [...prev, entry]);
   };
 
+  const handleUpdateManagerAssignments = (assignments: Array<{managerId: string; projectId: string}>) => {
+    setManagerAssignments(assignments);
+  };
+
   if (showEmployeeForm) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
@@ -284,10 +290,11 @@ const Index = () => {
         />
 
         <Tabs defaultValue="timetracking" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="timetracking">Czas Pracy</TabsTrigger>
             <TabsTrigger value="projects">Budowy</TabsTrigger>
             <TabsTrigger value="managers">Kierownicy</TabsTrigger>
+            <TabsTrigger value="manager-assignments">Przypisania</TabsTrigger>
             <TabsTrigger value="employees">Pracownicy</TabsTrigger>
             <TabsTrigger value="equipment">Sprzęt</TabsTrigger>
             <TabsTrigger value="reports">Raporty</TabsTrigger>
@@ -320,6 +327,15 @@ const Index = () => {
               onAddManager={() => setShowManagerForm(true)}
               onEditManager={handleEditManager}
               onDeleteManager={handleDeleteManager}
+            />
+          </TabsContent>
+
+          <TabsContent value="manager-assignments">
+            <ManagerAssignments
+              managers={managers}
+              projects={projects}
+              assignments={managerAssignments}
+              onUpdateAssignments={handleUpdateManagerAssignments}
             />
           </TabsContent>
 

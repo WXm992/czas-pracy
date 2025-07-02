@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { Search } from 'lucide-react';
 
 interface TimeEntry {
   id: string;
@@ -14,7 +17,7 @@ interface TimeEntry {
   endTime: string;
   breakTime: number;
   description: string;
-  type: 'work' | 'vacation' | 'sick' | 'absence';
+  type: 'work' | 'vacation' | 'sick' | 'absence' | 'vacation_on_demand' | 'l4';
 }
 
 interface TimeTrackerProps {
@@ -29,21 +32,33 @@ interface EmployeeTimeData {
   endTime: string;
   breakTime: number;
   description: string;
-  type: 'work' | 'vacation' | 'sick' | 'absence';
+  type: 'work' | 'vacation' | 'sick' | 'absence' | 'vacation_on_demand' | 'l4';
 }
 
 const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentProjectId, onSave }) => {
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState(currentProjectId || '');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   
   // Stan dla każdego pracownika
   const [employeesData, setEmployeesData] = useState<Record<string, EmployeeTimeData>>({});
 
-  // Filter employees by selected project
-  const filteredEmployees = selectedProjectId 
-    ? employees.filter(emp => emp.projectId === selectedProjectId)
-    : employees;
+  // Filter employees by selected project and search term
+  const filteredEmployees = useMemo(() => {
+    let filtered = selectedProjectId 
+      ? employees.filter(emp => emp.projectId === selectedProjectId)
+      : employees;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(emp => 
+        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  }, [employees, selectedProjectId, searchTerm]);
 
   const updateEmployeeData = (employeeId: string, field: keyof EmployeeTimeData, value: string | number) => {
     setEmployeesData(prev => ({
@@ -83,6 +98,30 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
     return '0.00';
   };
 
+  const handleEmployeeSelection = (employeeId: string, checked: boolean) => {
+    const newSelected = new Set(selectedEmployees);
+    if (checked) {
+      newSelected.add(employeeId);
+    } else {
+      newSelected.delete(employeeId);
+    }
+    setSelectedEmployees(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedEmployees.size === filteredEmployees.length) {
+      setSelectedEmployees(new Set());
+    } else {
+      setSelectedEmployees(new Set(filteredEmployees.map(emp => emp.id)));
+    }
+  };
+
+  const handleBulkTypeChange = (type: EmployeeTimeData['type']) => {
+    selectedEmployees.forEach(employeeId => {
+      updateEmployeeData(employeeId, 'type', type);
+    });
+  };
+
   const handleSaveAll = () => {
     if (!selectedProjectId || !selectedDate) {
       toast({
@@ -94,7 +133,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
     }
 
     const entries = Object.entries(employeesData).filter(([_, data]) => {
-      // Zapisz tylko jeśli wprowadzono jakieś dane lub zmieniono typ z 'work'
       return data.type !== 'work' || data.startTime !== '08:00' || data.endTime !== '16:00';
     });
 
@@ -123,8 +161,8 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
       description: `Zapisano czas pracy dla ${entries.length} pracowników`
     });
 
-    // Wyczyść dane
     setEmployeesData({});
+    setSelectedEmployees(new Set());
   };
 
   const handleSaveEmployee = (employeeId: string) => {
@@ -154,12 +192,30 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
       description: `Zapisano czas pracy dla ${employee?.firstName} ${employee?.lastName}`
     });
 
-    // Wyczyść dane dla tego pracownika
     setEmployeesData(prev => {
       const newData = { ...prev };
       delete newData[employeeId];
       return newData;
     });
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'work':
+        return 'Praca';
+      case 'vacation':
+        return 'Urlop';
+      case 'vacation_on_demand':
+        return 'Urlop na żądanie';
+      case 'sick':
+        return 'Zwolnienie lekarskie';
+      case 'l4':
+        return 'L4';
+      case 'absence':
+        return 'Nieobecność';
+      default:
+        return type;
+    }
   };
 
   return (
@@ -169,7 +225,7 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* Filtry globalne - data pierwsza */}
+          {/* Filtry globalne */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
             <div>
               <Label htmlFor="date">Data *</Label>
@@ -190,7 +246,8 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
                   value={selectedProjectId}
                   onChange={(e) => {
                     setSelectedProjectId(e.target.value);
-                    setEmployeesData({}); // Wyczyść dane przy zmianie projektu
+                    setEmployeesData({});
+                    setSelectedEmployees(new Set());
                   }}
                   required
                 >
@@ -205,37 +262,104 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
             )}
           </div>
 
-          {/* Lista pracowników */}
-          {selectedProjectId && filteredEmployees.length > 0 && (
+          {/* Wyszukiwanie i operacje masowe */}
+          {selectedProjectId && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Lista Pracowników</h3>
-                <Button onClick={handleSaveAll} className="bg-green-600 hover:bg-green-700">
-                  Zapisz Wszystkich
-                </Button>
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+                <div className="flex-1">
+                  <Label htmlFor="search">Wyszukaj pracownika</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      id="search"
+                      type="text"
+                      placeholder="Wpisz imię lub nazwisko..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                {selectedEmployees.size > 0 && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleBulkTypeChange('vacation')}
+                    >
+                      Urlop ({selectedEmployees.size})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleBulkTypeChange('vacation_on_demand')}
+                    >
+                      Urlop na żądanie
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleBulkTypeChange('sick')}
+                    >
+                      Zwolnienie
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleBulkTypeChange('l4')}
+                    >
+                      L4
+                    </Button>
+                  </div>
+                )}
               </div>
 
+              {filteredEmployees.length > 0 && (
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="select-all"
+                      checked={selectedEmployees.size === filteredEmployees.length && filteredEmployees.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <Label htmlFor="select-all">
+                      Zaznacz wszystkich ({filteredEmployees.length})
+                    </Label>
+                  </div>
+                  <Button onClick={handleSaveAll} className="bg-green-600 hover:bg-green-700">
+                    Zapisz Wszystkich
+                  </Button>
+                </div>
+              )}
+
+              {/* Lista pracowników */}
               <div className="space-y-4">
                 {filteredEmployees.map(employee => {
                   const data = getEmployeeData(employee.id);
+                  const isSelected = selectedEmployees.has(employee.id);
                   return (
-                    <Card key={employee.id} className="p-4">
+                    <Card key={employee.id} className={`p-4 ${isSelected ? 'bg-blue-50 border-blue-200' : ''}`}>
                       <div className="space-y-4">
-                        {/* Nagłówek z nazwiskiem i przyciskiem zapisu */}
                         <div className="flex justify-between items-center">
-                          <h4 className="text-md font-medium">
-                            {employee.firstName} {employee.lastName}
-                          </h4>
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleEmployeeSelection(employee.id, checked as boolean)}
+                            />
+                            <h4 className="text-md font-medium">
+                              {employee.firstName} {employee.lastName}
+                            </h4>
+                          </div>
                           <Button 
                             size="sm"
                             onClick={() => handleSaveEmployee(employee.id)}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            variant={isSelected ? "default" : "outline"}
                           >
                             Zapisz
                           </Button>
                         </div>
 
-                        {/* Typ wpisu */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div>
                             <Label>Typ wpisu</Label>
@@ -246,7 +370,9 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
                             >
                               <option value="work">Praca</option>
                               <option value="vacation">Urlop</option>
-                              <option value="sick">Zwolnienie</option>
+                              <option value="vacation_on_demand">Urlop na żądanie</option>
+                              <option value="sick">Zwolnienie lekarskie</option>
+                              <option value="l4">L4</option>
                               <option value="absence">Nieobecność</option>
                             </select>
                           </div>
@@ -289,6 +415,14 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
                             </p>
                           </div>
                         )}
+
+                        {data.type !== 'work' && (
+                          <div className="bg-yellow-50 p-3 rounded-md">
+                            <p className="text-sm text-yellow-700">
+                              Typ wpisu: <strong>{getTypeLabel(data.type)}</strong>
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </Card>
                   );
@@ -297,7 +431,13 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ employees, projects, currentP
             </div>
           )}
 
-          {selectedProjectId && filteredEmployees.length === 0 && (
+          {selectedProjectId && filteredEmployees.length === 0 && searchTerm && (
+            <div className="text-center py-8 text-gray-500">
+              Nie znaleziono pracowników pasujących do wyszukiwania "{searchTerm}"
+            </div>
+          )}
+
+          {selectedProjectId && filteredEmployees.length === 0 && !searchTerm && (
             <div className="text-center py-8 text-gray-500">
               Brak pracowników przypisanych do wybranej budowy
             </div>
