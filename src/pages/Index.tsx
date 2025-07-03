@@ -10,9 +10,9 @@ import StatsCards from '@/components/StatsCards';
 import ManagersList from '@/components/ManagersList';
 import EmployeesList from '@/components/EmployeesList';
 import TimeTrackingTab from '@/components/TimeTrackingTab';
-import ManagerAssignments from '@/components/ManagerAssignments';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import UserManagement from '@/components/UserManagement';
 
 interface Employee {
   id: string;
@@ -300,9 +300,9 @@ const Index = () => {
             <TabsTrigger value="timetracking">Czas Pracy</TabsTrigger>
             <TabsTrigger value="projects">Budowy</TabsTrigger>
             <TabsTrigger value="managers">Kierownicy</TabsTrigger>
-            <TabsTrigger value="manager-assignments">Przypisania</TabsTrigger>
             <TabsTrigger value="employees">Pracownicy</TabsTrigger>
             <TabsTrigger value="equipment">Sprzęt</TabsTrigger>
+            <TabsTrigger value="users">Użytkownicy</TabsTrigger>
             <TabsTrigger value="reports">Raporty</TabsTrigger>
           </TabsList>
 
@@ -339,15 +339,6 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="manager-assignments">
-            <ManagerAssignments
-              managers={managers}
-              projects={projects}
-              assignments={managerAssignments}
-              onUpdateAssignments={handleUpdateManagerAssignments}
-            />
-          </TabsContent>
-
           <TabsContent value="employees" className="space-y-4">
             <EmployeesList
               employees={employees}
@@ -360,6 +351,10 @@ const Index = () => {
 
           <TabsContent value="equipment">
             <EquipmentManager />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <UserManagement />
           </TabsContent>
 
           <TabsContent value="reports">

@@ -16,6 +16,18 @@ export type Database = {
           condition: string
           created_at: string
           id: string
+          inspection_from: string | null
+          inspection_to: string | null
+          insurance_ac: boolean | null
+          insurance_assistance: boolean | null
+          insurance_company: string | null
+          insurance_from: string | null
+          insurance_oc: boolean | null
+          insurance_policy_number: string | null
+          insurance_to: string | null
+          lease_company: string | null
+          lease_from: string | null
+          lease_to: string | null
           model: string | null
           name: string
           notes: string | null
@@ -29,6 +41,18 @@ export type Database = {
           condition?: string
           created_at?: string
           id?: string
+          inspection_from?: string | null
+          inspection_to?: string | null
+          insurance_ac?: boolean | null
+          insurance_assistance?: boolean | null
+          insurance_company?: string | null
+          insurance_from?: string | null
+          insurance_oc?: boolean | null
+          insurance_policy_number?: string | null
+          insurance_to?: string | null
+          lease_company?: string | null
+          lease_from?: string | null
+          lease_to?: string | null
           model?: string | null
           name: string
           notes?: string | null
@@ -42,6 +66,18 @@ export type Database = {
           condition?: string
           created_at?: string
           id?: string
+          inspection_from?: string | null
+          inspection_to?: string | null
+          insurance_ac?: boolean | null
+          insurance_assistance?: boolean | null
+          insurance_company?: string | null
+          insurance_from?: string | null
+          insurance_oc?: boolean | null
+          insurance_policy_number?: string | null
+          insurance_to?: string | null
+          lease_company?: string | null
+          lease_from?: string | null
+          lease_to?: string | null
           model?: string | null
           name?: string
           notes?: string | null
@@ -110,6 +146,39 @@ export type Database = {
           is_active?: boolean
           manager_id?: string
           project_id?: string
+        }
+        Relationships: []
+      }
+      system_users: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          password_hash: string
+          permissions: Json | null
+          role: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          password_hash: string
+          permissions?: Json | null
+          role?: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          password_hash?: string
+          permissions?: Json | null
+          role?: string
+          updated_at?: string | null
+          username?: string
         }
         Relationships: []
       }
