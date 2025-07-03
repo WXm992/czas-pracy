@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -67,11 +68,41 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     }
   }, [currentProjectId]);
 
+  // Zapamiętaj ostatnie przypisanie pracownika do budowy
+  useEffect(() => {
+    if (employeeId && projectId) {
+      const key = `employee-${employeeId}-last-project`;
+      localStorage.setItem(key, projectId);
+      onUpdateEmployeeProject(employeeId, projectId);
+    }
+  }, [employeeId, projectId, onUpdateEmployeeProject]);
+
+  // Przywróć ostatnią budowę dla wybranego pracownika
+  useEffect(() => {
+    if (employeeId) {
+      const key = `employee-${employeeId}-last-project`;
+      const lastProject = localStorage.getItem(key);
+      if (lastProject && projects.find(p => p.id === lastProject)) {
+        setProjectId(lastProject);
+      }
+    }
+  }, [employeeId, projects]);
+
   const handleSave = () => {
-    if (!employeeId || !projectId || !date || !startTime || !endTime) {
+    if (!employeeId || !date) {
       toast({
         title: "Błąd",
-        description: "Proszę wypełnić wszystkie pola",
+        description: "Wybierz pracownika i datę",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Dla typu "work" wymagamy więcej danych
+    if (type === 'work' && (!projectId || !startTime || !endTime)) {
+      toast({
+        title: "Błąd",
+        description: "Dla pracy wypełnij wszystkie pola",
         variant: "destructive"
       });
       return;
@@ -80,10 +111,10 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     const newEntry: TimeEntry = {
       id: Date.now().toString(),
       employeeId,
-      projectId,
+      projectId: projectId || '',
       date: format(date, 'yyyy-MM-dd'),
-      startTime,
-      endTime,
+      startTime: startTime || '00:00',
+      endTime: endTime || '00:00',
       breakTime: Number(breakTime),
       description,
       type,
@@ -92,11 +123,11 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     onSave(newEntry);
     toast({
       title: "Sukces",
-      description: "Zapisano nowy wpis"
+      description: "Zapisano wpis"
     });
 
-    setEmployeeId('');
-    setDate(undefined);
+    // Reset formularza - zachowaj pracownika i budowę
+    setDate(new Date());
     setStartTime('');
     setEndTime('');
     setBreakTime(0);
@@ -112,47 +143,52 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
     { value: 'absence', label: 'Nieobecność' }
   ];
 
+  const isWorkType = type === 'work';
+
   return (
-    <Card className="w-full">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Rejestracja Czasu Pracy</CardTitle>
+        <CardTitle>Dodaj Czas Pracy</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
-          <div>
-            <Label htmlFor="employee">Pracownik</Label>
-            <Select onValueChange={setEmployeeId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Wybierz pracownika" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.firstName} {employee.lastName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Podstawowe informacje - zawsze widoczne */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="employee">Pracownik *</Label>
+              <Select value={employeeId} onValueChange={setEmployeeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz pracownika" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.firstName} {employee.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="type">Typ wpisu *</Label>
+              <Select value={type} onValueChange={(value: TimeEntry['type']) => setType(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz typ" />
+                </SelectTrigger>
+                <SelectContent>
+                  {entryTypes.map((entryType) => (
+                    <SelectItem key={entryType.value} value={entryType.value}>
+                      {entryType.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
-            <Label htmlFor="project">Budowa</Label>
-            <Select onValueChange={setProjectId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Wybierz budowę" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label>Data</Label>
+            <Label>Data *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -171,61 +207,65 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
                   mode="single"
                   selected={date}
                   onSelect={setDate}
-                  disabled={(date) =>
-                    date > new Date()
-                  }
+                  disabled={(date) => date > new Date()}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startTime">Godzina rozpoczęcia</Label>
-              <Input
-                type="time"
-                id="startTime"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="endTime">Godzina zakończenia</Label>
-              <Input
-                type="time"
-                id="endTime"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              />
-            </div>
-          </div>
+          {/* Szczegóły pracy - tylko dla typu "work" */}
+          {isWorkType && (
+            <>
+              <div>
+                <Label htmlFor="project">Budowa *</Label>
+                <Select value={projectId} onValueChange={setProjectId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz budowę" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div>
-            <Label htmlFor="breakTime">Czas przerwy (minuty)</Label>
-            <Input
-              type="number"
-              id="breakTime"
-              value={breakTime.toString()}
-              onChange={(e) => setBreakTime(Number(e.target.value))}
-            />
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="startTime">Od *</Label>
+                  <Input
+                    type="time"
+                    id="startTime"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endTime">Do *</Label>
+                  <Input
+                    type="time"
+                    id="endTime"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                </div>
+              </div>
 
-          <div>
-            <Label htmlFor="type">Typ wpisu</Label>
-            <Select onValueChange={setType}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Wybierz typ" />
-              </SelectTrigger>
-              <SelectContent>
-                {entryTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div>
+                <Label htmlFor="breakTime">Przerwa (minuty)</Label>
+                <Input
+                  type="number"
+                  id="breakTime"
+                  value={breakTime.toString()}
+                  onChange={(e) => setBreakTime(Number(e.target.value))}
+                  placeholder="0"
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <Label htmlFor="description">Opis</Label>
@@ -234,10 +274,13 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Dodatkowe informacje"
+              rows={2}
             />
           </div>
 
-          <Button onClick={handleSave}>Zapisz</Button>
+          <Button onClick={handleSave} className="w-full">
+            Zapisz wpis
+          </Button>
         </div>
       </CardContent>
     </Card>
