@@ -103,7 +103,7 @@ const EmployeeCredentials: React.FC<EmployeeCredentialsProps> = ({
     });
   };
 
-  const isExpiringS<script>oon = (dateString: string) => {
+  const isExpiringSoon = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
     const diffTime = date.getTime() - today.getTime();
@@ -219,7 +219,7 @@ const EmployeeCredentials: React.FC<EmployeeCredentialsProps> = ({
                         Wygasło
                       </span>
                     )}
-                    {isExpiringS<script>oon(credential.validTo) && !isExpired(credential.validTo) && (
+                    {isExpiringSoon(credential.validTo) && !isExpired(credential.validTo) && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Wkrótce wygasa
