@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Building, MapPin, Calendar, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { Building, MapPin, Calendar, ChevronDown, ChevronUp, Users, Wrench } from 'lucide-react';
+import ProjectEquipmentManager from './ProjectEquipmentManager';
 
 interface Project {
   id: string;
@@ -53,6 +53,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     name: '',
     location: '',
@@ -101,6 +102,16 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
       newExpanded.add(projectId);
     }
     setExpandedProjects(newExpanded);
+  };
+
+  const toggleEquipmentExpansion = (projectId: string) => {
+    const newExpanded = new Set(expandedEquipment);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedEquipment(newExpanded);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -286,6 +297,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
         {projects.map(project => {
           const projectManagers = getProjectManagers(project.id);
           const isExpanded = expandedProjects.has(project.id);
+          const isEquipmentExpanded = expandedEquipment.has(project.id);
           
           return (
             <Card key={project.id}>
@@ -317,21 +329,37 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
                       )}
                     </div>
 
-                    {/* Przycisk rozwijania kierowników */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleProjectExpansion(project.id)}
-                      className="mb-3"
-                    >
-                      <Users className="w-4 h-4 mr-2" />
-                      Zarządzaj kierownikami
-                      {isExpanded ? (
-                        <ChevronUp className="w-4 h-4 ml-2" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 ml-2" />
-                      )}
-                    </Button>
+                    <div className="flex gap-2 mb-3">
+                      {/* Przycisk rozwijania kierowników */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleProjectExpansion(project.id)}
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Zarządzaj kierownikami
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 ml-2" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 ml-2" />
+                        )}
+                      </Button>
+
+                      {/* Przycisk rozwijania sprzętu */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleEquipmentExpansion(project.id)}
+                      >
+                        <Wrench className="w-4 h-4 mr-2" />
+                        Zarządzaj sprzętem
+                        {isEquipmentExpanded ? (
+                          <ChevronUp className="w-4 h-4 ml-2" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 ml-2" />
+                        )}
+                      </Button>
+                    </div>
 
                     {/* Rozwinięta lista kierowników */}
                     {isExpanded && (
@@ -367,6 +395,16 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({
                             );
                           })}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Rozwinięta sekcja sprzętu */}
+                    {isEquipmentExpanded && (
+                      <div className="border-t pt-4 mt-4">
+                        <ProjectEquipmentManager
+                          projectId={project.id}
+                          projectName={project.name}
+                        />
                       </div>
                     )}
                   </div>
