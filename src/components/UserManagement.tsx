@@ -7,15 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Edit, Trash2, Shield } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { usersApi, SystemUser as ApiSystemUser } from '@/lib/api';
 
 interface SystemUser {
   id: string;
   username: string;
   role: string;
   permissions: any;
-  is_active: boolean;
-  created_at: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 const UserManagement: React.FC = () => {
@@ -45,13 +46,8 @@ const UserManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('system_users')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setUsers(data || []);
+      const userData = await usersApi.getAll();
+      setUsers(userData);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -88,28 +84,19 @@ const UserManagement: React.FC = () => {
         username: formData.username,
         role: formData.role,
         permissions: formData.permissions,
-        is_active: formData.is_active,
-        ...(formData.password && { password_hash: btoa(formData.password) }) // Proste szyfrowanie dla demo
+        isActive: formData.is_active,
+        ...(formData.password && { password: formData.password })
       };
 
       if (editingUser) {
-        const { error } = await supabase
-          .from('system_users')
-          .update(userData)
-          .eq('id', editingUser.id);
-
-        if (error) throw error;
+        await usersApi.update(editingUser.id, userData);
         
         toast({
           title: "Sukces",
           description: "Użytkownik został zaktualizowany"
         });
       } else {
-        const { error } = await supabase
-          .from('system_users')
-          .insert([{ ...userData, password_hash: btoa(formData.password) }]);
-
-        if (error) throw error;
+        await usersApi.create({ ...userData, password: formData.password });
         
         toast({
           title: "Sukces",
@@ -143,7 +130,7 @@ const UserManagement: React.FC = () => {
         manageEquipment: false,
         viewTimeTracking: true
       },
-      is_active: user.is_active
+      is_active: user.isActive
     });
     setEditingUser(user);
     setShowForm(true);
@@ -151,12 +138,7 @@ const UserManagement: React.FC = () => {
 
   const handleDelete = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('system_users')
-        .delete()
-        .eq('id', userId);
-
-      if (error) throw error;
+      await usersApi.delete(userId);
       
       toast({
         title: "Sukces",
@@ -377,7 +359,7 @@ const UserManagement: React.FC = () => {
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {getRoleText(user.role)}
                     </span>
-                    {!user.is_active && (
+                    {!user.isActive && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         Nieaktywne
                       </span>
@@ -385,7 +367,7 @@ const UserManagement: React.FC = () => {
                   </div>
                   
                   <div className="space-y-1 text-gray-600">
-                    <p><strong>Utworzone:</strong> {new Date(user.created_at).toLocaleDateString('pl-PL')}</p>
+                    <p><strong>Utworzone:</strong> {new Date(user.createdAt).toLocaleDateString('pl-PL')}</p>
                     <div>
                       <strong>Uprawnienia:</strong>
                       <div className="ml-4 text-sm">

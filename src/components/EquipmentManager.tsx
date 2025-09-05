@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Wrench, Calendar, Building2, AlertTriangle, Shield, FileText } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { equipmentApi, Equipment as ApiEquipment } from '@/lib/api';
 
 interface Equipment {
   id: string;
@@ -15,22 +15,24 @@ interface Equipment {
   category: string;
   brand?: string;
   model?: string;
-  serial_number?: string;
+  serialNumber?: string;
   condition: string;
   notes?: string;
-  purchase_date?: string;
-  inspection_from?: string;
-  inspection_to?: string;
-  insurance_company?: string;
-  insurance_policy_number?: string;
-  insurance_oc?: boolean;
-  insurance_ac?: boolean;
-  insurance_assistance?: boolean;
-  insurance_from?: string;
-  insurance_to?: string;
-  lease_company?: string;
-  lease_from?: string;
-  lease_to?: string;
+  purchaseDate?: string;
+  inspectionFrom?: string;
+  inspectionTo?: string;
+  insuranceCompany?: string;
+  insurancePolicyNumber?: string;
+  insuranceOc?: boolean;
+  insuranceAc?: boolean;
+  insuranceAssistance?: boolean;
+  insuranceFrom?: string;
+  insuranceTo?: string;
+  leaseCompany?: string;
+  leaseFrom?: string;
+  leaseTo?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const EquipmentManager: React.FC = () => {
@@ -68,13 +70,8 @@ const EquipmentManager: React.FC = () => {
 
   const fetchEquipment = async () => {
     try {
-      const { data: equipmentData, error } = await supabase
-        .from('equipment')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      setEquipment(equipmentData || []);
+      const equipmentData = await equipmentApi.getAll();
+      setEquipment(equipmentData);
     } catch (error) {
       console.error('Error fetching equipment:', error);
       toast({
@@ -98,24 +95,39 @@ const EquipmentManager: React.FC = () => {
     }
 
     try {
-      if (editingEquipment) {
-        const { error } = await supabase
-          .from('equipment')
-          .update(formData)
-          .eq('id', editingEquipment.id);
+      // Convert form data to match API expectations
+      const apiData = {
+        name: formData.name,
+        category: formData.category,
+        brand: formData.brand || undefined,
+        model: formData.model || undefined,
+        serialNumber: formData.serial_number || undefined,
+        condition: formData.condition,
+        notes: formData.notes || undefined,
+        purchaseDate: formData.purchase_date || undefined,
+        inspectionFrom: formData.inspection_from || undefined,
+        inspectionTo: formData.inspection_to || undefined,
+        insuranceCompany: formData.insurance_company || undefined,
+        insurancePolicyNumber: formData.insurance_policy_number || undefined,
+        insuranceOc: formData.insurance_oc,
+        insuranceAc: formData.insurance_ac,
+        insuranceAssistance: formData.insurance_assistance,
+        insuranceFrom: formData.insurance_from || undefined,
+        insuranceTo: formData.insurance_to || undefined,
+        leaseCompany: formData.lease_company || undefined,
+        leaseFrom: formData.lease_from || undefined,
+        leaseTo: formData.lease_to || undefined
+      };
 
-        if (error) throw error;
+      if (editingEquipment) {
+        await equipmentApi.update(editingEquipment.id, apiData);
         
         toast({
           title: "Sukces",
           description: "Sprzęt został zaktualizowany"
         });
       } else {
-        const { error } = await supabase
-          .from('equipment')
-          .insert([formData]);
-
-        if (error) throw error;
+        await equipmentApi.create(apiData);
         
         toast({
           title: "Sukces",
@@ -141,22 +153,22 @@ const EquipmentManager: React.FC = () => {
       category: equipment.category,
       brand: equipment.brand || '',
       model: equipment.model || '',
-      serial_number: equipment.serial_number || '',
+      serial_number: equipment.serialNumber || '',
       condition: equipment.condition,
       notes: equipment.notes || '',
-      purchase_date: equipment.purchase_date || '',
-      inspection_from: equipment.inspection_from || '',
-      inspection_to: equipment.inspection_to || '',
-      insurance_company: equipment.insurance_company || '',
-      insurance_policy_number: equipment.insurance_policy_number || '',
-      insurance_oc: equipment.insurance_oc || false,
-      insurance_ac: equipment.insurance_ac || false,
-      insurance_assistance: equipment.insurance_assistance || false,
-      insurance_from: equipment.insurance_from || '',
-      insurance_to: equipment.insurance_to || '',
-      lease_company: equipment.lease_company || '',
-      lease_from: equipment.lease_from || '',
-      lease_to: equipment.lease_to || ''
+      purchase_date: equipment.purchaseDate || '',
+      inspection_from: equipment.inspectionFrom || '',
+      inspection_to: equipment.inspectionTo || '',
+      insurance_company: equipment.insuranceCompany || '',
+      insurance_policy_number: equipment.insurancePolicyNumber || '',
+      insurance_oc: equipment.insuranceOc || false,
+      insurance_ac: equipment.insuranceAc || false,
+      insurance_assistance: equipment.insuranceAssistance || false,
+      insurance_from: equipment.insuranceFrom || '',
+      insurance_to: equipment.insuranceTo || '',
+      lease_company: equipment.leaseCompany || '',
+      lease_from: equipment.leaseFrom || '',
+      lease_to: equipment.leaseTo || ''
     });
     setEditingEquipment(equipment);
     setShowForm(true);
@@ -164,12 +176,7 @@ const EquipmentManager: React.FC = () => {
 
   const handleDelete = async (equipmentId: string) => {
     try {
-      const { error } = await supabase
-        .from('equipment')
-        .delete()
-        .eq('id', equipmentId);
-
-      if (error) throw error;
+      await equipmentApi.delete(equipmentId);
       
       toast({
         title: "Sukces",
@@ -541,25 +548,25 @@ const EquipmentManager: React.FC = () => {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(item.condition)}`}>
                       {getConditionText(item.condition)}
                     </span>
-                    {isExpired(item.inspection_to) && (
+                    {isExpired(item.inspectionTo) && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Przegląd przeterminowany
                       </span>
                     )}
-                    {isExpiringSoon(item.inspection_to) && !isExpired(item.inspection_to) && (
+                    {isExpiringSoon(item.inspectionTo) && !isExpired(item.inspectionTo) && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Przegląd wkrótce
                       </span>
                     )}
-                    {isExpired(item.insurance_to) && (
+                    {isExpired(item.insuranceTo) && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1">
                         <Shield className="w-3 h-3" />
                         Ubezpieczenie wygasło
                       </span>
                     )}
-                    {isExpiringSoon(item.insurance_to) && !isExpired(item.insurance_to) && (
+                    {isExpiringSoon(item.insuranceTo) && !isExpired(item.insuranceTo) && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center gap-1">
                         <Shield className="w-3 h-3" />
                         Ubezpieczenie wkrótce
@@ -571,72 +578,72 @@ const EquipmentManager: React.FC = () => {
                     <p><strong>Kategoria:</strong> {item.category.replace('_', ' ')}</p>
                     {item.brand && <p><strong>Marka:</strong> {item.brand}</p>}
                     {item.model && <p><strong>Model:</strong> {item.model}</p>}
-                    {item.serial_number && <p><strong>Nr seryjny:</strong> {item.serial_number}</p>}
+                    {item.serialNumber && <p><strong>Nr seryjny:</strong> {item.serialNumber}</p>}
                     
-                    {item.purchase_date && (
+                    {item.purchaseDate && (
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        <span>Zakupiony: {new Date(item.purchase_date).toLocaleDateString('pl-PL')}</span>
+                        <span>Zakupiony: {new Date(item.purchaseDate).toLocaleDateString('pl-PL')}</span>
                       </div>
                     )}
 
                     {/* Przeglądy */}
-                    {(item.inspection_from || item.inspection_to) && (
+                    {(item.inspectionFrom || item.inspectionTo) && (
                       <div className="mt-3">
                         <h4 className="font-medium flex items-center gap-2">
                           <FileText className="w-4 h-4" />
                           Przeglądy
                         </h4>
-                        {item.inspection_from && (
-                          <p className="text-sm ml-6">Od: {new Date(item.inspection_from).toLocaleDateString('pl-PL')}</p>
+                        {item.inspectionFrom && (
+                          <p className="text-sm ml-6">Od: {new Date(item.inspectionFrom).toLocaleDateString('pl-PL')}</p>
                         )}
-                        {item.inspection_to && (
-                          <p className="text-sm ml-6">Do: {new Date(item.inspection_to).toLocaleDateString('pl-PL')}</p>
+                        {item.inspectionTo && (
+                          <p className="text-sm ml-6">Do: {new Date(item.inspectionTo).toLocaleDateString('pl-PL')}</p>
                         )}
                       </div>
                     )}
 
                     {/* Ubezpieczenia */}
-                    {(item.insurance_company || item.insurance_policy_number || item.insurance_from || item.insurance_to) && (
+                    {(item.insuranceCompany || item.insurancePolicyNumber || item.insuranceFrom || item.insuranceTo) && (
                       <div className="mt-3">
                         <h4 className="font-medium flex items-center gap-2">
                           <Shield className="w-4 h-4" />
                           Ubezpieczenia
                         </h4>
-                        {item.insurance_company && (
-                          <p className="text-sm ml-6">TU: {item.insurance_company}</p>
+                        {item.insuranceCompany && (
+                          <p className="text-sm ml-6">TU: {item.insuranceCompany}</p>
                         )}
-                        {item.insurance_policy_number && (
-                          <p className="text-sm ml-6">Polisa: {item.insurance_policy_number}</p>
+                        {item.insurancePolicyNumber && (
+                          <p className="text-sm ml-6">Polisa: {item.insurancePolicyNumber}</p>
                         )}
                         <div className="text-sm ml-6">
                           Zakres: {[
-                            item.insurance_oc && 'OC',
-                            item.insurance_ac && 'AC',
-                            item.insurance_assistance && 'Assistance'
+                            item.insuranceOc && 'OC',
+                            item.insuranceAc && 'AC',
+                            item.insuranceAssistance && 'Assistance'
                           ].filter(Boolean).join(', ') || 'Brak'}
                         </div>
-                        {item.insurance_from && (
-                          <p className="text-sm ml-6">Od: {new Date(item.insurance_from).toLocaleDateString('pl-PL')}</p>
+                        {item.insuranceFrom && (
+                          <p className="text-sm ml-6">Od: {new Date(item.insuranceFrom).toLocaleDateString('pl-PL')}</p>
                         )}
-                        {item.insurance_to && (
-                          <p className="text-sm ml-6">Do: {new Date(item.insurance_to).toLocaleDateString('pl-PL')}</p>
+                        {item.insuranceTo && (
+                          <p className="text-sm ml-6">Do: {new Date(item.insuranceTo).toLocaleDateString('pl-PL')}</p>
                         )}
                       </div>
                     )}
 
                     {/* Leasing */}
-                    {(item.lease_company || item.lease_from || item.lease_to) && (
+                    {(item.leaseCompany || item.leaseFrom || item.leaseTo) && (
                       <div className="mt-3">
                         <h4 className="font-medium">Leasing</h4>
-                        {item.lease_company && (
-                          <p className="text-sm ml-6">Firma: {item.lease_company}</p>
+                        {item.leaseCompany && (
+                          <p className="text-sm ml-6">Firma: {item.leaseCompany}</p>
                         )}
-                        {item.lease_from && (
-                          <p className="text-sm ml-6">Od: {new Date(item.lease_from).toLocaleDateString('pl-PL')}</p>
+                        {item.leaseFrom && (
+                          <p className="text-sm ml-6">Od: {new Date(item.leaseFrom).toLocaleDateString('pl-PL')}</p>
                         )}
-                        {item.lease_to && (
-                          <p className="text-sm ml-6">Do: {new Date(item.lease_to).toLocaleDateString('pl-PL')}</p>
+                        {item.leaseTo && (
+                          <p className="text-sm ml-6">Do: {new Date(item.leaseTo).toLocaleDateString('pl-PL')}</p>
                         )}
                       </div>
                     )}

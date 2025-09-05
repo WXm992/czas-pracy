@@ -10,7 +10,7 @@ import StatsCards from '@/components/StatsCards';
 import ManagersList from '@/components/ManagersList';
 import EmployeesList from '@/components/EmployeesList';
 import TimeTrackingTab from '@/components/TimeTrackingTab';
-import { supabase } from '@/integrations/supabase/client';
+// Removed Supabase import as it's no longer needed
 import { useToast } from '@/hooks/use-toast';
 import UserManagement from '@/components/UserManagement';
 
@@ -192,17 +192,9 @@ const Index = () => {
       }
 
       if (project.managerId) {
-        const { error } = await supabase
-          .from('manager_project_assignments')
-          .upsert({
-            manager_id: project.managerId,
-            project_id: project.id,
-            is_active: true
-          });
-
-        if (error) {
-          console.error('Error creating manager assignment:', error);
-        }
+        // TODO: Implement manager project assignment API call
+        // This would create a manager assignment record in the database
+        console.log('Would assign manager', project.managerId, 'to project', project.id);
       }
 
       toast({
