@@ -70,3 +70,20 @@ export const systemUsers = pgTable("system_users", {
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
 });
+
+// Time tracking entries table
+export const timeTrackingEntries = pgTable("time_tracking_entries", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  employeeId: text("employee_id").notNull(),
+  employeeName: text("employee_name").notNull(),
+  projectId: text("project_id").notNull(),
+  workDate: date("work_date").notNull(),
+  startTime: text("start_time"), // Format: "HH:MM"
+  endTime: text("end_time"), // Format: "HH:MM"
+  breakMinutes: text("break_minutes").default("30"),
+  notes: text("notes"),
+  absenceType: text("absence_type").notNull().default("work"), // "work", "vacation", "sick_leave", "unpaid_leave", "absence"
+  isPresent: boolean("is_present").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`),
+});

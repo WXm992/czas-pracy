@@ -1,6 +1,6 @@
 
 import React from 'react';
-import TimeTracker from '@/components/TimeTracker';
+import WorkerTimeList from '@/components/WorkerTimeList';
 import EmployeeProjectManager from '@/components/EmployeeProjectManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -25,19 +25,18 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="add-time" className="w-full">
+      <Tabs defaultValue="worker-list" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="add-time">Dodaj Czas Pracy</TabsTrigger>
+          <TabsTrigger value="worker-list">Lista Pracowników</TabsTrigger>
           <TabsTrigger value="manage-assignments">Przypisania Pracowników</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="add-time" className="space-y-4">
-          <TimeTracker
+        <TabsContent value="worker-list" className="space-y-4">
+          <WorkerTimeList
             employees={employees}
             projects={activeProjects}
-            currentProjectId={selectedProject}
-            onSave={onSaveTimeEntry}
-            onUpdateEmployeeProject={onUpdateEmployeeProject}
+            selectedProject={selectedProject}
+            onProjectChange={onProjectChange}
           />
         </TabsContent>
 

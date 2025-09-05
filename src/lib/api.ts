@@ -56,6 +56,22 @@ export interface ManagerAssignment {
   isActive: boolean;
 }
 
+export interface TimeTrackingEntry {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  projectId: string;
+  workDate: string;
+  startTime?: string;
+  endTime?: string;
+  breakMinutes?: string;
+  notes?: string;
+  absenceType: 'work' | 'vacation' | 'sick_leave' | 'unpaid_leave' | 'absence';
+  isPresent: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Generic API function
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -152,6 +168,34 @@ export const managerAssignmentsApi = {
     return apiCall<ManagerAssignment>('/manager-assignments', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+};
+
+// Time Tracking API functions
+export const timeTrackingApi = {
+  async getAll(projectId?: string): Promise<TimeTrackingEntry[]> {
+    const url = projectId ? `/time-entries?projectId=${projectId}` : '/time-entries';
+    return apiCall<TimeTrackingEntry[]>(url);
+  },
+
+  async create(data: Omit<TimeTrackingEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<TimeTrackingEntry> {
+    return apiCall<TimeTrackingEntry>('/time-entries', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Partial<TimeTrackingEntry>): Promise<TimeTrackingEntry> {
+    return apiCall<TimeTrackingEntry>(`/time-entries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<{ message: string }> {
+    return apiCall<{ message: string }>(`/time-entries/${id}`, {
+      method: 'DELETE',
     });
   },
 };

@@ -5,7 +5,8 @@ import {
   equipment,
   systemUsers,
   equipmentProjectAssignments,
-  managerProjectAssignments
+  managerProjectAssignments,
+  timeTrackingEntries
 } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -201,6 +202,78 @@ app.post('/api/manager-assignments', async (req, res) => {
   } catch (error) {
     console.error('Error creating manager assignment:', error);
     res.status(500).json({ error: 'Failed to create manager assignment' });
+  }
+});
+
+// Time tracking routes
+app.get('/api/time-entries', async (req, res) => {
+  try {
+    const { projectId } = req.query;
+    
+    if (projectId) {
+      const entries = await db
+        .select()
+        .from(timeTrackingEntries)
+        .where(eq(timeTrackingEntries.projectId, projectId as string))
+        .orderBy(timeTrackingEntries.workDate, timeTrackingEntries.employeeName);
+      res.json(entries);
+    } else {
+      const entries = await db
+        .select()
+        .from(timeTrackingEntries)
+        .orderBy(timeTrackingEntries.workDate, timeTrackingEntries.employeeName);
+      res.json(entries);
+    }
+  } catch (error) {
+    console.error('Error fetching time entries:', error);
+    res.status(500).json({ error: 'Failed to fetch time entries' });
+  }
+});
+
+app.post('/api/time-entries', async (req, res) => {
+  try {
+    const newEntry = await db.insert(timeTrackingEntries).values(req.body).returning();
+    res.status(201).json(newEntry[0]);
+  } catch (error) {
+    console.error('Error creating time entry:', error);
+    res.status(500).json({ error: 'Failed to create time entry' });
+  }
+});
+
+app.put('/api/time-entries/:id', async (req, res) => {
+  try {
+    const updatedEntry = await db
+      .update(timeTrackingEntries)
+      .set(req.body)
+      .where(eq(timeTrackingEntries.id, req.params.id))
+      .returning();
+    
+    if (updatedEntry.length === 0) {
+      return res.status(404).json({ error: 'Time entry not found' });
+    }
+    
+    res.json(updatedEntry[0]);
+  } catch (error) {
+    console.error('Error updating time entry:', error);
+    res.status(500).json({ error: 'Failed to update time entry' });
+  }
+});
+
+app.delete('/api/time-entries/:id', async (req, res) => {
+  try {
+    const deletedEntry = await db
+      .delete(timeTrackingEntries)
+      .where(eq(timeTrackingEntries.id, req.params.id))
+      .returning();
+    
+    if (deletedEntry.length === 0) {
+      return res.status(404).json({ error: 'Time entry not found' });
+    }
+    
+    res.json({ message: 'Time entry deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting time entry:', error);
+    res.status(500).json({ error: 'Failed to delete time entry' });
   }
 });
 
