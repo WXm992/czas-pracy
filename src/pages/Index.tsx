@@ -23,7 +23,8 @@ interface Employee {
   startDate: string;
   phone: string;
   email: string;
-  projectId?: string;
+  projectId?: string; // Keep for backward compatibility
+  projectIds?: string[]; // New field for multiple project assignments
 }
 
 interface Manager {
@@ -233,6 +234,27 @@ const Index = () => {
     ));
   };
 
+  // New handler for adding employees quickly
+  const handleAddEmployee = (employeeData: Omit<Employee, 'id'>) => {
+    const newEmployee: Employee = {
+      ...employeeData,
+      id: Date.now().toString(),
+      hourlyRate: 0, // Default values for quick add
+      startDate: new Date().toISOString().split('T')[0],
+      phone: '',
+      email: '',
+      projectIds: []
+    };
+    setEmployees(prev => [...prev, newEmployee]);
+  };
+
+  // New handler for updating multiple project assignments
+  const handleUpdateEmployeeProjects = (employeeId: string, projectIds: string[]) => {
+    setEmployees(prev => prev.map(emp => 
+      emp.id === employeeId ? { ...emp, projectIds, projectId: projectIds[0] } : emp
+    ));
+  };
+
   if (showEmployeeForm) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
@@ -305,7 +327,8 @@ const Index = () => {
               selectedProject={selectedProject}
               onProjectChange={setSelectedProject}
               onSaveTimeEntry={handleSaveTimeEntry}
-              onUpdateEmployeeProject={handleUpdateEmployeeProject}
+              onAddEmployee={handleAddEmployee}
+              onUpdateEmployeeProjects={handleUpdateEmployeeProjects}
             />
           </TabsContent>
 

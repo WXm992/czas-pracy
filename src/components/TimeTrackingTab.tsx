@@ -1,7 +1,7 @@
 
 import React from 'react';
 import WorkerTimeList from '@/components/WorkerTimeList';
-import EmployeeProjectManager from '@/components/EmployeeProjectManager';
+import QuickEmployeeManager from '@/components/QuickEmployeeManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface TimeTrackingTabProps {
@@ -10,7 +10,8 @@ interface TimeTrackingTabProps {
   selectedProject: string;
   onProjectChange: (projectId: string) => void;
   onSaveTimeEntry: (entry: any) => void;
-  onUpdateEmployeeProject: (employeeId: string, projectId: string | undefined) => void;
+  onAddEmployee: (employee: any) => void;
+  onUpdateEmployeeProjects: (employeeId: string, projectIds: string[]) => void;
 }
 
 const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
@@ -19,7 +20,8 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
   selectedProject,
   onProjectChange,
   onSaveTimeEntry,
-  onUpdateEmployeeProject
+  onAddEmployee,
+  onUpdateEmployeeProjects
 }) => {
   const activeProjects = projects.filter(p => p.status === 'active');
 
@@ -28,7 +30,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
       <Tabs defaultValue="worker-list" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="worker-list">Lista Pracowników</TabsTrigger>
-          <TabsTrigger value="manage-assignments">Przypisania Pracowników</TabsTrigger>
+          <TabsTrigger value="manage-employees">Zarządzanie Pracownikami</TabsTrigger>
         </TabsList>
 
         <TabsContent value="worker-list" className="space-y-4">
@@ -40,30 +42,13 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({
           />
         </TabsContent>
 
-        <TabsContent value="manage-assignments" className="space-y-4">
-          {selectedProject ? (
-            <EmployeeProjectManager
-              employees={employees}
-              selectedProjectId={selectedProject}
-              onUpdateEmployeeProject={onUpdateEmployeeProject}
-            />
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">Wybierz budowę, aby zarządzać przypisaniami pracowników</p>
-              <select
-                className="p-2 border border-gray-300 rounded-md"
-                value={selectedProject}
-                onChange={(e) => onProjectChange(e.target.value)}
-              >
-                <option value="">Wybierz budowę</option>
-                {activeProjects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+        <TabsContent value="manage-employees" className="space-y-4">
+          <QuickEmployeeManager
+            employees={employees}
+            projects={projects}
+            onAddEmployee={onAddEmployee}
+            onUpdateEmployeeProjects={onUpdateEmployeeProjects}
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -18,6 +18,7 @@ interface Employee {
   lastName: string;
   position: string;
   projectId?: string;
+  projectIds?: string[];
 }
 
 interface Project {
@@ -56,7 +57,10 @@ const WorkerTimeList: React.FC<WorkerTimeListProps> = ({
   const [loading, setLoading] = useState(false);
 
   const activeProjects = projects.filter(p => p.name); // Filter active projects
-  const projectEmployees = employees.filter(emp => emp.projectId === selectedProject);
+  const projectEmployees = employees.filter(emp => 
+    emp.projectId === selectedProject || 
+    (emp.projectIds && emp.projectIds.includes(selectedProject))
+  );
 
   const absenceTypes = [
     { value: 'work', label: 'Praca', color: 'bg-green-100 text-green-800' },
