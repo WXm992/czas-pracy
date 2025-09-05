@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Clock, Users, Plus, Save } from "lucide-react";
+import { CalendarIcon, Clock, Users, Plus, Save, UserPlus, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +33,8 @@ interface WorkerTimeListProps {
   projects: Project[];
   selectedProject: string;
   onProjectChange: (projectId: string) => void;
+  onAddEmployee: (employee: Omit<Employee, 'id'>) => void;
+  onUpdateEmployeeProjects: (employeeId: string, projectIds: string[]) => void;
 }
 
 interface WorkerEntry {
@@ -48,18 +52,34 @@ const WorkerTimeList: React.FC<WorkerTimeListProps> = ({
   employees,
   projects,
   selectedProject,
-  onProjectChange
+  onProjectChange,
+  onAddEmployee,
+  onUpdateEmployeeProjects
 }) => {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [timeEntries, setTimeEntries] = useState<TimeTrackingEntry[]>([]);
   const [workerEntries, setWorkerEntries] = useState<WorkerEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAddEmployees, setShowAddEmployees] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const activeProjects = projects.filter(p => p.name); // Filter active projects
   const projectEmployees = employees.filter(emp => 
     emp.projectId === selectedProject || 
     (emp.projectIds && emp.projectIds.includes(selectedProject))
+  );
+
+  // All employees not currently assigned to this project
+  const availableEmployees = employees.filter(emp => 
+    emp.projectId !== selectedProject && 
+    (!emp.projectIds || !emp.projectIds.includes(selectedProject))
+  );
+
+  // Filter available employees based on search
+  const filteredAvailableEmployees = availableEmployees.filter(emp =>
+    `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.position.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const absenceTypes = [
@@ -185,6 +205,38 @@ const WorkerTimeList: React.FC<WorkerTimeListProps> = ({
     return absenceTypes.find(at => at.value === type) || absenceTypes[0];
   };
 
+  // Handle adding employee to current project
+  const handleAddEmployeeToProject = (employeeId: string) => {
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (!employee || !selectedProject) return;
+
+    const currentProjectIds = employee.projectIds || [];
+    const newProjectIds = [...currentProjectIds, selectedProject];
+    
+    onUpdateEmployeeProjects(employeeId, newProjectIds);
+    
+    toast({
+      title: "Sukces",
+      description: `${employee.firstName} ${employee.lastName} został dodany do budowy`
+    });
+  };
+
+  // Handle removing employee from current project
+  const handleRemoveEmployeeFromProject = (employeeId: string) => {
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (!employee || !selectedProject) return;
+
+    const currentProjectIds = employee.projectIds || [];
+    const newProjectIds = currentProjectIds.filter(pid => pid !== selectedProject);
+    
+    onUpdateEmployeeProjects(employeeId, newProjectIds);
+    
+    toast({
+      title: "Sukces", 
+      description: `${employee.firstName} ${employee.lastName} został usunięty z budowy`
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Project and Date Selection */}
@@ -242,6 +294,75 @@ const WorkerTimeList: React.FC<WorkerTimeListProps> = ({
         </CardContent>
       </Card>
 
+      {/* Quick Add Employees */}
+      {selectedProject && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5" />
+                Szybkie dodawanie pracowników
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddEmployees(!showAddEmployees)}
+                className="flex items-center gap-2"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${showAddEmployees ? 'rotate-180' : ''}`} />
+                {showAddEmployees ? 'Ukryj' : 'Pokaż'} ({availableEmployees.length})
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          {showAddEmployees && (
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Szukaj pracownika..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+              
+              {filteredAvailableEmployees.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {filteredAvailableEmployees.map(employee => (
+                    <div
+                      key={employee.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          id={`add-employee-${employee.id}`}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              handleAddEmployeeToProject(employee.id);
+                            }
+                          }}
+                        />
+                        <label htmlFor={`add-employee-${employee.id}`} className="cursor-pointer">
+                          <div className="font-medium">{employee.firstName} {employee.lastName}</div>
+                          <div className="text-sm text-gray-500">{employee.position}</div>
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : searchTerm ? (
+                <div className="text-center text-gray-500 py-4">
+                  Nie znaleziono pracowników dla "{searchTerm}"
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-4">
+                  Wszyscy pracownicy są już przypisani do tej budowy
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {selectedProject && selectedDate && (
         <Card>
           <CardHeader>
@@ -282,8 +403,21 @@ const WorkerTimeList: React.FC<WorkerTimeListProps> = ({
                   return (
                     <div key={entry.employeeId} className="grid grid-cols-12 gap-2 items-center bg-white p-3 border rounded hover:bg-gray-50">
                       <div className="col-span-3">
-                        <div className="font-medium">{entry.employeeName}</div>
-                        <div className="text-sm text-gray-500">{employee?.position}</div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">{entry.employeeName}</div>
+                            <div className="text-sm text-gray-500">{employee?.position}</div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveEmployeeFromProject(entry.employeeId)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="Usuń z budowy"
+                          >
+                            ×
+                          </Button>
+                        </div>
                       </div>
                       
                       <div className="col-span-1 text-sm text-gray-600">
